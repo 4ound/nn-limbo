@@ -4,7 +4,7 @@ from layers import (
     FullyConnectedLayer, ReLULayer,
     ConvolutionalLayer, MaxPoolingLayer, Flattener,
     softmax_with_cross_entropy, l2_regularization
-    )
+)
 
 
 class ConvNet:
@@ -15,6 +15,7 @@ class ConvNet:
     Conv[3x3] -> Relu -> MaxPool[4x4] ->
     Flatten -> FC -> Softmax
     """
+
     def __init__(self, input_shape, n_output_classes, conv1_channels, conv2_channels):
         """
         Initializes the neural network
@@ -26,8 +27,16 @@ class ConvNet:
         conv1_channels, int - number of filters in the 1st conv layer
         conv2_channels, int - number of filters in the 2nd conv layer
         """
-        # TODO Create necessary layers
-        raise Exception("Not implemented!")
+        self.layers = [
+            ConvolutionalLayer(input_shape[2], conv1_channels, 3, 1),
+            ReLULayer(),
+            MaxPoolingLayer(4, 4),
+            ConvolutionalLayer(conv1_channels, conv2_channels, 3, 1),
+            ReLULayer(),
+            MaxPoolingLayer(4, 4),
+            Flattener(),
+            FullyConnectedLayer(4 * conv2_channels, n_output_classes)
+        ]
 
     def compute_loss_and_gradients(self, X, y):
         """
@@ -40,21 +49,39 @@ class ConvNet:
         """
         # Before running forward and backward pass through the model,
         # clear parameter gradients aggregated from the previous pass
-
-        # TODO Compute loss and fill param gradients
         # Don't worry about implementing L2 regularization, we will not
         # need it in this assignment
-        raise Exception("Not implemented!")
+
+        params = self.params()
+        for key in params.keys():
+            params[key].grad = np.zeros_like(params[key].value)
+
+        layer_result = X
+        for i in range(len(self.layers)):
+            layer_result = self.layers[i].forward(layer_result)
+
+        loss, grad = softmax_with_cross_entropy(layer_result, y)
+
+        dX = grad
+        for i in reversed(range(len(self.layers))):
+            dX = self.layers[i].backward(dX)
+
+        return loss
 
     def predict(self, X):
         # You can probably copy the code from previous assignment
-        raise Exception("Not implemented!")
+        layer_result = X
+        for i in range(len(self.layers)):
+            layer_result = self.layers[i].forward(layer_result)
+
+        return np.argmax(layer_result, axis=1)
 
     def params(self):
-        result = {}
-
-        # TODO: Aggregate all the params from all the layers
-        # which have parameters
-        raise Exception("Not implemented!")
+        result = {'C1W': self.layers[0].W,
+                  'C1B': self.layers[0].B,
+                  'C2W': self.layers[3].W,
+                  'C2B': self.layers[3].B,
+                  'FCW': self.layers[7].W,
+                  'FCB': self.layers[7].B}
 
         return result
